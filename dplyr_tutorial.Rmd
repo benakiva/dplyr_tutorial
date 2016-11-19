@@ -1,0 +1,336 @@
+---
+title: "dplyr Tutorial"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introduction
+
+Data science is the methodology of turning data into knowledge and actionable insight. This methodology is composed of many processes, but we could summarise them into three main processes: data collection, analysis and communication. The following diagram illustrates the data science's processes:
+
+Often times, the collected data aren't ready for analysis. They need to be cleaned and prepared. It is a known among data scientists that we spend a large part of our work on the process of cleaning, preparing and transforming the gathered data for analysis. You may be wondering whether you read it right. I can assure that's correct. We, data scientists, spend a long time with janitorial and transformational work before the fun of analysing the data starts. Therefore, it does make sense to learn and become proficient in the best tools to do the job. [highlight]dplyr[/highlight] is one of such tools. As observed by Roger D. Peng, the dplyr package does not provide any “new” functionality to R per se, in the sense that everything dplyr does could already be done with base R, but it greatly simplifies existing functionality in R. (Roger D. Peng, Exploratory Data Analysis with R, p. 5, 2015)
+
+dplyr is a powerful R package for exploratory data analysis and transformation. It's supposedly the next iteration of the plyr package, but focused on data frames. dplyr was created by Hadley Wickham and it provides simple verbs, i.e., functions that correspond to the most common exploratory data analysis and manipulation tasks, such as [highlight]filter[/highlight], [highlight]select[/highlight], [highlight]arrange[/highlight], [highlight]mutate[/highlight], [highlight]summarise[/highlight]. In this introductory tutorial, I will walk you through these five verbs besides the ancillary [highlight]group_by[/highlight] and the pipe operator ([highlight]%>%[/highlight]) borrowed from the magrittr package.
+
+"It is often said that 80% of data analysis is spent on the process of cleaning and preparing the data (Dasu and Johnson 2003). Data preparation is not just a first step, but must be repeated many times over the course of analysis as new problems come to light or new data is collected.
+
+Hadley Wickham, Tiny Data
+
+## Installation and Loading
+
+As with any other R package, you install dplyr by calling the install.packages function specifying "dplyr" as the package name. The following command illustrates it for you:
+
+```{r, results='hide'}
+#install.packages("dplyr")
+library(dplyr)
+```
+
+##The Data
+
+The Data
+
+In this tutorial, we will use a data set of European football player statistics I have prepared from the original European Soccer Database on Kaggle. You can find this data set on the GitHub repository I've created for this tutorial. So, before going any further, download the .csv file from GitHub and follow along.
+
+The first step is to load the data into memory. You'll need to pass the full path to the .csv to the read.csv function:
+
+```{r}
+player_stats <- read.csv("euro_football_players_stats.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+Let's convert the dates from character to Date object for easier manipulation:
+
+```{r}
+player_stats$date_stat <- as.Date(player_stats$date_stat)
+player_stats$birthday <- as.Date(player_stats$birthday)
+```
+
+read.csv imports the dataset into a data frame, which is a very versatile R object. However, as you can see on the above image, when you use the head function on it the columns are wrapped to fit the screen size. dplyr has a specific object called table data frame, i.e., tbl_df. tbl_df solves the problem that some of us must have encountered when using R with a large dataset, then mistakenly typing the name of a dataset in RStudio and R froze for a long time trying to print out ten of thousand of records and eventualy crashing. dplyr is smart enough to print only a small subset of your dataset. This is so, because dplyr tbl_df (a special type of data frame) only prints the first 10 observations of a dataset with as many columns as will fit on your screen. If you want to see more observations, you must call print with the n argument set to the number of desired observations.
+
+Let's explore the dataset:
+
+```{r}
+class(player_stats)
+head(player_stats)
+dim(player_stats)
+```
+
+```{r}
+player_stats <- tbl_df(player_stats)
+player_stats
+```
+
+
+This initial exploration of the dataset reveals that it has over 180,000 observations and 49 variables. And, tbl_df also prints the data type of every columns.
+
+## [spacer]Verbs of Data Manipulation
+
+dplyr was created with the aim to provide a function for each basic verb of data manipulation:
+
+[highlight]filter[/highlight]: keep rows matching criteria
+[highlight]select[/highlight]: pick columns by name
+[highlight]arrange[/highlight]: reorder rows
+[highlight]mutate[/highlight]: add new columns
+[highlight]summarise[/highlight]: reduce columns to values
+
+We will look at each of these functions in the next few sections.
+
+These functions share a common syntax or structure. For each function: 
+
+*the first argument is a data frame, the data frame we want to manipulate. 
+*The following arguments will tell the function what to do with the data frame. 
+*Lastly, all these functions will always return a data frame when they're finished.
+
+We can examplify them as:   tbl_df dplyr_function(df, criteria ...)
+
+dplyr functions will never modify the original data frame. This means that when you run the function, you'll get a modified copy of the original data frame. And if you want to use that copy later, you'll need to save it to an R object.
+Using these five verbs together with the group_by function will solve the majority of your data manipulation needs.
+
+## Filter
+
+filter() allows you to select a subset of rows in a data frame. You can use any set of R logical operators in filter() combined in filtering conditions, which a joined together with & (logical AND) by default. But, you can also user other Boolean operators, for instance |:
+
+* x < y, TRUE if x is less than y
+* x <= y, TRUE if x is less than or equal to y
+* x == y, TRUE if x equals y
+* x != y, TRUE if x does not equal y
+* x >= y, TRUE if x is greater than or equal to y
+* x > y, TRUE if x is greater than y
+* x %in% c(a, b, c), TRUE if x is in the vector c(a, b, c)
+* is.na(): is NA
+* !is.na(): is not NA.
+
+For instance, for extracting rows whose overall_rating is greater than 70, we would run:
+
+```{r}
+high_rating <- filter(player_stats, overall_rating > 70)
+high_rating
+```
+
+Another example,
+```{r}
+april_stats <- filter(player_stats, date_stat >= "2016-04-01", date_stat <= "2016-04-30")
+april_stats
+```
+
+Using multi-columns based criteria:
+
+```{r}
+left_foot <- filter(player_stats, preferred_foot == "left", attacking_work_rate == "high")
+left_foot
+```
+
+
+Using the OR operator (|): Extract rows where free_kick_accuracy > 70 OR long_passing > 70:
+
+```{r}
+filter(player_stats, free_kick_accuracy > 70 | long_passing > 70)
+```
+
+We can also cherry pick individual values within the observations. For instance, suppose we want to pick players whose overall ratings are 70, 80 and 90 specifically. We can run the following command making use of the %in% operator:
+
+```{r}
+filter(player_stats, overall_rating %in% c(70, 80, 90))
+```
+
+Now, remember that dplyr does not modify the original data frame. If you want to use the results of your query, you must store the return values in a variable, such as:
+
+```{r}
+high_performers <- filter(player_stats, overall_rating %in% c(70, 80, 90))
+```
+
+## Select
+
+We usually work on a large data frame containing all the collected data. However, we might be interested in only a few variables. select() allows you to create useful a subset of the original data by selecting the columns that are of most interest to you.
+
+You can select columns by name, i.e., by individually naming the columns you want to select:
+
+```{r}
+ratings <- select(player_stats, date_stat, player_api_id, overall_rating, player_name)
+ratings
+```
+
+You can select a range of columns:
+
+```{r}
+ratings <- select(player_stats, player_api_id, date_stat, overall_rating:gk_reflexes)
+ratings
+```
+
+There are moments when we need to select all columns except for a few:
+
+```{r}
+select(player_stats, -(potential:id))
+```
+
+Or,
+
+```{r}
+select(player_stats, -player_stats_id)
+```
+
+## Helper functions for columns selection
+
+dplyr comes with a set of functions that can help you select groups of columns inside a select() call:
+
+* starts_with("X"): every name that starts with "X",
+* ends_with("X"): every name that ends with "X",
+* contains("X"): every name that contains "X",
+* matches("X"): every name that matches "X", where "X" can be a regular expression,
+* num_range("x", 1:5): the variables named x01, x02, x03, x04 and x05,
+* one_of(x): every name that appears in x, which should be a character vector.
+
+```{r}
+select(player_stats, starts_with('gk'))
+```
+
+
+```{r}
+select(player_stats, ends_with('rate'))
+```
+
+
+```{r}
+select(player_stats, contains('ing'))
+```
+
+
+You can rename variables with select() by using named arguments:
+
+```{r}
+select(player_stats, player_id = player_api_id, final_rate = overall_rating)
+```
+
+
+However, select will only return the variables specified in the arguments. For a more useful variable renaming, you should use rename().
+
+```{r}
+rename(player_stats, player_id = player_api_id, final_rate = overall_rating)
+```
+
+
+To select unique values from a column, we can use select() in conjuction with the distinct() function;
+
+```{r}
+distinct(select(player_stats, player_name))
+```
+
+## Arrange rows with arrange()
+
+The arrange() verb reorder rows in ascending order by default or in descending order by the use of desc() helper function.
+
+The following call reorders the rows by carrier in ascending order.
+
+```{r}
+arrange(player_stats, overall_rating)
+```
+
+
+The following call reorders the rows by flight duration in the descending order.
+
+```{r}
+arrange(player_stats, desc(overall_rating))
+```
+
+
+The following function call reorders the rows by the total sum of overall_rating + potential per row in ascending order.
+
+```{r}
+arrange(player_stats, overall_rating + potential)
+```
+
+
+## Adding new columns with mutate()
+
+The mutate() function adds new columns to the end of the data frame.
+
+```{r}
+player_gain <- mutate(player_stats, gain = overall_rating - potential)
+select(player_gain, gain)
+```
+
+
+Unlike plyr, dplyr lets you refer to columns that you've just created. The following example shows that:
+
+```{r}
+player_gain <- mutate(player_stats, gain = overall_rating - potential, gain_per_height = gain / height)
+select(player_gain, gain, gain_per_height)
+```
+
+## Summarise
+
+The last verb is summarise(). summarise() will create summary statistics of a given column. To use summarise you really must first group the data.
+
+```{r}
+summarise(player_stats, avg_rating = mean(overall_rating, na.rm = TRUE))
+```
+
+We group the data by one or more variables, then we perform a summary on the data. So, the above example could be done like that:
+
+```{r}
+grouped_by_player <- group_by(player_stats, player_name)
+rating_avg <- summarise(grouped_by_player, avg_rating = mean(overall_rating, na.rm = TRUE))
+rating_avg
+```
+
+Another example is
+
+```{r}
+summarise(player_stats, min_rating = min(overall_rating, na.rm = TRUE), max_rating = max(overall_rating, na.rm = TRUE))
+```
+
+Summarise can be used these functions:
+
+*min(x), median(x), max(x), quantile(x, p)
+*n(), n_distinct(x), sum(x), mean(x)
+*sum(x > 10), mean(x > 10)
+*sd(x), var(x), iqr(x), mad(x)
+
+## Pipelines or Chaining
+
+In R, function calls return their results to the console, i.e., the standard output device (stdout). If you want to use the return value of functions, you must either save it in intermediary variables or you could use the dplyr %>% operator to chain the output of a function into the input of another one. If you'd do it step-by-step, you might end up with a code like this:
+
+```{r}
+a1 <- group_by(player_stats, player_name)
+a2 <- select(a1, player_name, overall_rating)
+a3 <- summarise(a2,
+  avg_rating = mean(overall_rating, na.rm = TRUE))
+a4 <- filter(a3, avg_rating > 85)
+a5 <- arrange(a4, desc(avg_rating))
+a5
+```
+
+Or, if you want to get rid of the intermediary variables:
+
+```{r}
+arrange(
+filter(
+  summarise(
+    select(
+      group_by(player_stats, player_name),
+        player_name, overall_rating),
+      avg_rating = mean(overall_rating, na.rm = TRUE)),
+      avg_rating > 85), desc(avg_rating))
+```
+
+This is difficult to read because the order of the operations is from inside to out. Thus, the arguments are a long way away from the function. To get around this problem, dplyr provides the %>% operator. x %>% f(y) turns into f(x, y) so you can use it to rewrite multiple operations that you can read left-to-right, top-to-bottom:
+
+```{r}
+player_stats %>%
+  group_by(player_name) %>%
+  summarise(avg_rating = mean(overall_rating, na.rm = TRUE)) %>%
+  filter(avg_rating > 85) %>%
+  arrange(desc(avg_rating))
+```
+
+The %>% operator is read "then". So, we can break the above code into the following instructions:
+  *Get flights, then
+  *group_by year, month, day. Then,
+  *select arr_delay and dep_delay. Then,
+  *summarise mean of arr_delay and dep_delay. Then,
+  *filter by arr > 30 or dep > 30
+  
+This brings us to the end of this article. We have learnt how to use dplyr 5 verbs for exploratory data analysis and manipulation on a single data table. In the next tutorial, we will learn how to use dplyr on a SQL database and how to use joins to analyse multiple tables. Stay tuned. If you have any questions, feel free to leave a comment or reach out to me on Twitter[https://twitter.com/benakiva]
